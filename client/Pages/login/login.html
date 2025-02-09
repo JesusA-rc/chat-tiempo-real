@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="./Pages/login/login.css">
+    <title>Iniciar Sesión / Registrarse</title>
+</head>
+<body class="body_login">
+    <div class="container">
+        <!-- Formulario de inicio de sesión -->
+        <form id="login-form" class="form active">
+            <div class="welcome_l">
+                <h2>Welcome back</h2>
+                <span>Please enter your account details</span>
+                <input type="text" id="username" placeholder="Nombre de usuario" required>
+                <input type="password" id="password" placeholder="Contraseña" required>
+                <button type="submit">Iniciar sesión</button>
+                <div class="error" id="login-error-message"></div>
+                <p>¿No tienes una cuenta? <a href="#" id="switch-to-register">Regístrate aquí</a></p>
+            </div>
+            <div class="welcome_r">
+                <h2>Chat easy</h2>
+                <img src="https://static7.depositphotos.com/1004999/710/i/600/depositphotos_7100026-stock-photo-winter.jpg" alt="">
+            </div>
+        </form>
+
+        <!-- Formulario de registro -->
+        <form id="register-form" class="form">
+            <div class="welcome_l">
+                <h2>Create an Account</h2>
+                <span>Please enter your details to register</span>
+                <input type="text" id="register-username" placeholder="Nombre de usuario" required>
+                <input type="password" id="register-password" placeholder="Contraseña" required>
+                <button type="submit">Registrarse</button>
+                <div class="error" id="register-error-message"></div>
+                <p>¿Ya tienes una cuenta? <a href="#" id="switch-to-login">Inicia sesión aquí</a></p>
+            </div>
+            <div class="welcome_r">
+                <h2>Chat easy</h2>
+                <img src="https://static7.depositphotos.com/1004999/710/i/600/depositphotos_7100026-stock-photo-winter.jpg" alt="">
+            </div>
+        </form>
+    </div>
+
+    <script src="./Pages/login/login.js"></script>
+</body>
+</html>
