@@ -19,6 +19,10 @@ Vista del bloqueado
 
 ![image](https://github.com/user-attachments/assets/3eb7483e-a925-40ee-8409-9e9d14d3262d)
 
+Usuario escribiendo.
+
+<img width="1091" height="623" alt="image" src="https://github.com/user-attachments/assets/b3008e26-6c7f-49ca-9fa4-0bdad13c3103" />
+
 
 Responsive.
 
