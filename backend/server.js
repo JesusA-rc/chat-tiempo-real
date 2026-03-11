@@ -10,7 +10,9 @@ import crypto from 'crypto';
 import dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
 
-
+import User from './models/User.js';
+import Message from './models/Message.js';
+import Block from './models/Block.js';
 
 dotenv.config();
 
@@ -71,26 +73,7 @@ mongoose.connect(MONGO_URI)
     .catch(err => console.error('Error al conectar a MongoDB:', err));
 
 
-//Esquemas -------------------------------------------------------------------------------------------------------------------
-const userSchema = new mongoose.Schema({
-    username: { type: String, required: true, unique: true },
-    password: { type: String, required: true }
-});
-const User = mongoose.model('User', userSchema);
 
-const messageSchema = new mongoose.Schema({
-    user: { type: String, required: true },
-    text: { type: String, required: true },
-    createdAt: { type: Date, default: Date.now }
-});
-const Message = mongoose.model('Message', messageSchema);
-
-
-const blockSchema = new mongoose.Schema({
-    blocker: String, // Usuario que bloquea
-    blocked: String, // Usuario bloqueado
-});
-const Block = mongoose.model('Block', blockSchema);
 
 
 
