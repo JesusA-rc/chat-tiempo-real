@@ -5,7 +5,6 @@ import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
 import { createServer } from 'node:http';
 import mongoose from 'mongoose';
-import crypto from 'crypto';
 import dotenv from 'dotenv';
 
 // Middlewares locales
@@ -19,7 +18,7 @@ import { registerChatHandlers } from './sockets/chatHandler.js';
 
 dotenv.config();
 
-const JWT_SECRET = crypto.randomBytes(32).toString('hex');
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-for-dev-only';
 const MONGO_URI = process.env.MONGO_URI;
 const users = new Set();
 
