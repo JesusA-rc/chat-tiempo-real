@@ -339,6 +339,14 @@ io.on('connection', async (socket) => {
             }
         });
 
+        socket.on('typing', (data) => {
+            socket.broadcast.emit('user typing', data.user);
+        });
+
+        socket.on('stop typing', () => {
+            socket.broadcast.emit('user stop typing');
+        });
+
         socket.on('get blocked users', async () => {
             const blockedUsers = await Block.find({ blocker: socket.user }).distinct('blocked'); //lista de bloqueados
             socket.emit('blocked users list', blockedUsers);

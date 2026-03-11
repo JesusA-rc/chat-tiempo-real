@@ -8,6 +8,18 @@ const form = document.getElementById('form');
 const input = document.getElementById('input');
 const messages = document.getElementById('messages');
 const usersList = document.getElementById('users-list');
+const typingStatus = document.getElementById('typing-status');
+
+let typingTimeout;
+
+input.addEventListener('keydown', () => {
+    socket.emit('typing', { user: usernameElement.textContent });
+
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+        socket.emit('stop typing');
+    }, 2000);
+});
 
 let blockedUsers = [];
 
@@ -120,6 +132,14 @@ socket.on('users connected', (connectedUsers) => {
 
 socket.on('redirect', (destination) => {
     window.location.href = destination;
+});
+
+socket.on('user typing', (username) => {
+    typingStatus.textContent = `${username} está escribiendo...`;
+});
+
+socket.on('user stop typing', () => {
+    typingStatus.textContent = '';
 });
 
 logoutButton.addEventListener('click', () => {
