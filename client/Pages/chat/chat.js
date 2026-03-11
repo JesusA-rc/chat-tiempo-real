@@ -1,5 +1,3 @@
-
-
 const token = localStorage.getItem('token');
 const logoutButton = document.getElementById('logout-button');
 const usernameElement = document.getElementById('username');
@@ -25,30 +23,57 @@ let blockedUsers = [];
 
 
 //Funciones  -----------------------------------
+function showConfirm(title, message, onConfirm) {
+    const modal = document.getElementById('confirm-modal');
+    const titleEl = document.getElementById('confirm-title');
+    const messageEl = document.getElementById('confirm-message');
+    const okBtn = document.getElementById('confirm-ok');
+    const cancelBtn = document.getElementById('confirm-cancel');
+
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    modal.style.display = 'flex';
+
+    const close = () => { modal.style.display = 'none'; };
+
+    okBtn.onclick = () => {
+        onConfirm();
+        close();
+    };
+
+    cancelBtn.onclick = close;
+}
+
 function blockUser(username) {
-    socket.emit('block user', username); //Registra el bloqueo en el servidor
-    blockedUsers.push(username);
+    showConfirm(
+        'Bloquear Usuario', 
+        `¿Estás seguro de que quieres bloquear a ${username}? No verás sus mensajes ni él los tuyos.`, 
+        () => {
+            socket.emit('block user', username); //Registra el bloqueo en el servidor
+            blockedUsers.push(username);
 
-    const userItems = usersList.querySelectorAll('li'); //Lo elimina visualmente
-    userItems.forEach((item) => {
-        if (item.textContent.includes(username)) {
-            item.remove();
+            const userItems = usersList.querySelectorAll('li'); //Lo elimina visualmente
+            userItems.forEach((item) => {
+                if (item.textContent.includes(username)) {
+                    item.remove();
+                }
+            });
+
+            const allMessages = messages.querySelectorAll('.message');
+            allMessages.forEach((message) => {
+                const userName = message.querySelector('.username').textContent.replace(':', '');
+                if (userName === username) {
+                    message.remove();
+                }
+            });
+
+            const messageItem = document.createElement('li');
+            messageItem.textContent = `Has bloqueado a ${username}`;
+            messageItem.style.color = 'red';
+            messages.appendChild(messageItem);
+            messages.scrollTop = messages.scrollHeight;
         }
-    });
-
-    const allMessages = messages.querySelectorAll('.message');
-    allMessages.forEach((message) => {
-        const userName = message.querySelector('.username').textContent.replace(':', '');
-        if (userName === username) {
-            message.remove();
-        }
-    });
-
-    const messageItem = document.createElement('li');
-    messageItem.textContent = `Has bloqueado a ${username}`;
-    messageItem.style.color = 'red';
-    messages.appendChild(messageItem);
-    messages.scrollTop = messages.scrollHeight;
+    );
 }
 
 function addUserToList(user) {
@@ -143,10 +168,16 @@ socket.on('user stop typing', () => {
 });
 
 logoutButton.addEventListener('click', () => {
-    socket.emit('logout');
-    localStorage.removeItem('token');
-    socket.disconnect();
-    window.location.href = '/login';
+    showConfirm(
+        'Cerrar Sesión',
+        '¿Estás seguro de que quieres salir?',
+        () => {
+            socket.emit('logout');
+            localStorage.removeItem('token');
+            socket.disconnect();
+            window.location.href = '/login';
+        }
+    );
 });
 
 let username = 'Usuario';
@@ -174,23 +205,6 @@ form.addEventListener('submit', (e) => {
         input.value = '';
     }
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 //Modal
 const blockedUsersButton = document.getElementById('blocked-users-button');
@@ -234,15 +248,11 @@ closeModalButton.addEventListener('click', () => {
     blockedUsersModal.style.display = 'none';
 });
 
-
 window.addEventListener('click', (event) => {
     if (event.target === blockedUsersModal) {
         blockedUsersModal.style.display = 'none';
     }
 });
-
-
-
 
 document.getElementById("toggle-sidebar").addEventListener("click", function() {
     document.getElementById("sidebar").classList.toggle("open");

@@ -1,14 +1,17 @@
 # Chat Real-Time App
 
-Una aplicación de chat desarrollada con **Node.js**, **Express**, **Socket.io** y **MongoDB**. Permite comunicación instantánea entre usuarios autenticados con funcionalidades de privacidad.
+Una aplicación de chat robusta desarrollada con **Node.js**, **Express**, **Socket.io** y **MongoDB**. Diseñada para ofrecer una experiencia de usuario fluida, segura y con un rendimiento optimizado.
 
 ## Características Principales
 
-- **Mensajería Instantánea:** Comunicación bidireccional en tiempo real mediante WebSockets.
-- **Persistencia de Datos:** Los mensajes se almacenan de forma segura en MongoDB Atlas.
-- **Autenticación Robusta:** Registro e inicio de sesión con contraseñas encriptadas (Bcrypt) y sesiones protegidas por JSON Web Tokens (JWT).
-- **Control de Privacidad (Bloqueos):** Sistema de bloqueo de usuarios para filtrar mensajes y estado de conexión.
-- **Indicador de Escritura:** Visualización en tiempo real cuando otros usuarios están escribiendo mensajes.
+- **Mensajería Instantánea:** Comunicación bidireccional en tiempo real mediante WebSockets altamente optimizados.
+- **Persistencia de Sesión (JWT):** Las sesiones de los usuarios se mantienen válidas incluso tras reiniciar el servidor gracias a la persistencia del `JWT_SECRET` en variables de entorno.
+- **Rendimiento Optimizado:** Sistema de cache de bloqueos en memoria que reduce drásticamente las consultas a la base de datos (eliminación de consultas N+1), permitiendo una mensajería ultra-rápida.
+- **Control de Privacidad Avanzado (Bloqueos):**
+  - Sistema de bloqueo bidireccional e instantáneo (sin recargar la página).
+  - Filtro automático de mensajes históricos y eventos de escritura (`typing`) para usuarios bloqueados.
+- **Confirmación de Acciones Críticas:** Modal reutilizable para confirmar el cierre de sesión y bloqueos de usuarios, mejorando la experiencia de usuario (UX).
+- **Persistencia de Datos:** Todos los mensajes y relaciones de bloqueo se almacenan de forma segura en MongoDB Atlas.
 - **Diseño Responsivo:** Interfaz adaptable a diferentes dispositivos (móvil, tablet y escritorio).
 
 ---
@@ -28,22 +31,11 @@ Una aplicación de chat desarrollada con **Node.js**, **Express**, **Socket.io**
 ![image](https://github.com/user-attachments/assets/e3d5d02d-b480-44c6-97f8-10dba170e08a)
 
 ### Interfaz de Chat
-Permite ver los usuarios conectados, chatear de forma general y gestionar bloqueos.
-
 ![image](https://github.com/user-attachments/assets/018130aa-d966-4e5e-a1e4-d1c6710953ef)
-![image](https://github.com/user-attachments/assets/9f167b40-e724-42b9-9972-d5dbf72c3c48)
 
-### Indicador de Escritura
-Visualización en tiempo real de la actividad de los usuarios.
-
-<img width="1091" height="623" alt="image" src="https://github.com/user-attachments/assets/b3008e26-6c7f-49ca-9fa4-0bdad13c3103" >
-
-###  Vista de Usuario Bloqueado
-![image](https://github.com/user-attachments/assets/3eb7483e-a925-40ee-8409-9e9d14d3262d)
-
-###  Diseño Responsivo
-![image](https://github.com/user-attachments/assets/2b665331-3b80-4d04-9565-90a2d88df5ef)
-![image](https://github.com/user-attachments/assets/2494ccc3-ef01-4c9b-a6a2-41c803818b23)
+### Confirmación de Acciones (Nueva Mejora)
+![alt text](image.png)
+![alt text](image-1.png)
 
 ---
 
@@ -62,16 +54,18 @@ Visualización en tiempo real de la actividad de los usuarios.
    ```
 
 3. **Configurar variables de entorno:**
-   Crea un archivo `.env` dentro de la carpeta `backend` con el siguiente contenido:
+   Crea un archivo `.env` dentro de la carpeta `backend`:
    ```env
    PORT=3000
    MONGO_URI=tu_cadena_de_conexion_a_mongodb_atlas
+   JWT_SECRET=clave_secreta_para_tokens_jwt
    ```
 
-4. **Iniciar la aplicación:**
-   ```bash
-   node server.js
-   ```
+4. **Scripts Disponibles:**
+   - **Producción:** `npm start` (inicia el servidor con Node.js).
+   - **Desarrollo:** `npm run dev` (inicia el servidor con nodemon para reinicio automático).
 
 5. **Acceder:**
    Abre tu navegador en [http://localhost:3000](http://localhost:3000)
+
+---

@@ -353,3 +353,27 @@ body {
     }
 
 }
+
+.modal-buttons {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 20px;
+}
+
+.modal-buttons button {
+    padding: 10px 20px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+#confirm-cancel {
+    background-color: #ccc;
+    color: #333;
+}
+
+#confirm-ok.btn-danger {
+    background-color: #dc3737;
+    color: white;
+}

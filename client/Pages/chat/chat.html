@@ -45,6 +45,17 @@
         </section>
     </div>
 
+    <div id="confirm-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2 id="confirm-title">¿Estás seguro?</h2>
+            <p id="confirm-message">Esta acción no se puede deshacer.</p>
+            <div class="modal-buttons">
+                <button id="confirm-cancel">Cancelar</button>
+                <button id="confirm-ok" class="btn-danger">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script>
     <script src="chat.js"></script>
 </body>
