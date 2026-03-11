@@ -257,3 +257,30 @@ window.addEventListener('click', (event) => {
 document.getElementById("toggle-sidebar").addEventListener("click", function() {
     document.getElementById("sidebar").classList.toggle("open");
 });
+
+const emojiButton = document.getElementById('emoji-button');
+const emojiPickerContainer = document.getElementById('emoji-picker-container');
+const emojiPicker = document.querySelector('emoji-picker');
+
+emojiButton.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isHidden = emojiPickerContainer.style.display === 'none';
+    emojiPickerContainer.style.display = isHidden ? 'block' : 'none';
+});
+
+emojiPicker.addEventListener('emoji-click', (event) => {
+    const emoji = event.detail.unicode;
+    input.value += emoji;
+    input.focus();
+});
+
+document.addEventListener('click', (e) => {
+    if (!emojiPickerContainer.contains(e.target) && e.target !== emojiButton) {
+        emojiPickerContainer.style.display = 'none';
+    }
+});
+
+form.addEventListener('submit', () => {
+    emojiPickerContainer.style.display = 'none';
+});
+

@@ -377,3 +377,32 @@ body {
     background-color: #dc3737;
     color: white;
 }
+
+#emoji-button {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
+}
+
+#emoji-button:hover {
+    transform: scale(1.2);
+}
+
+emoji-picker {
+    width: 100%;
+    max-width: 350px;
+    height: 300px;
+}
+
+#emoji-picker-container {
+    position: absolute;
+    bottom: 60px;
+    right: 20px;
+    z-index: 1000;
+}
