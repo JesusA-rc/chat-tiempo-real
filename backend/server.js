@@ -8,7 +8,6 @@ import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
-import bcrypt from 'bcrypt';
 
 import User from './models/User.js';
 import Message from './models/Message.js';
@@ -16,6 +15,7 @@ import Block from './models/Block.js';
 
 import { formatDateTime } from './utils/dateFormatter.js';
 import { authenticateToken } from './middleware/auth.js';
+import { authRoutes } from './routes/authRoutes.js';
 
 
 dotenv.config();
@@ -47,6 +47,9 @@ mongoose.connect(MONGO_URI)
     .then(() => console.log('Conectado a MongoDB Atlas'))
     .catch(err => console.error('Error al conectar a MongoDB:', err));
 
+// Rutas de autenticación
+app.use('/', authRoutes(JWT_SECRET));
+
 // Ruta principal (chat)
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/Pages/login', 'login.html'));
@@ -57,54 +60,9 @@ app.get('/chat', authenticateToken(JWT_SECRET), (req, res) => {
     res.sendFile(path.join(__dirname, '../client/Pages/chat', 'chat.html'));
 });
 
-
-app.post('/register', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        const existingUser = await User.findOne({ username });
-        if (existingUser) {
-            return res.status(400).json({ message: 'El usuario ya existe' });
-        }
-
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const newUser = new User({ username, password: hashedPassword });
-        await newUser.save();
-
-        res.status(201).json({ message: 'Usuario registrado exitosamente' });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error al registrar el usuario' });
-    }
-});
-
 // Ruta para mostrar el formulario de inicio de sesión
 app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/Pages/login', 'login.html'));
-});
-
-
-app.post('/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-
-        const user = await User.findOne({ username });
-        if (!user) {
-            return res.status(400).json({ message: 'Usuario no encontrado' });
-        }
-
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-            return res.status(400).json({ message: 'Contraseña incorrecta' });
-        }
-
-        const token = jwt.sign({ username: user.username }, JWT_SECRET, { expiresIn: '1h' });
-
-        res.json({ message: 'Inicio de sesión exitoso', token });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error al iniciar sesión' });
-    }
 });
 
 // Eventos de Socket.IO
