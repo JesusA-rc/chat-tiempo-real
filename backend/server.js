@@ -14,6 +14,10 @@ import User from './models/User.js';
 import Message from './models/Message.js';
 import Block from './models/Block.js';
 
+import { formatDateTime } from './utils/dateFormatter.js';
+import { authenticateToken } from './middleware/auth.js';
+
+
 dotenv.config();
 
 const JWT_SECRET = crypto.randomBytes(32).toString('hex');
@@ -30,35 +34,6 @@ app.use(logger('dev'));
 app.use(express.static(path.join(__dirname, '../client')));
 
 
-//Funciones --------------------------------------------------------------------------------------------------------------------
-function authenticateToken(req, res, next) {
-    const token = req.query.token || req.headers['authorization'];
-
-    if (!token) {
-        console.error('Error de autenticación: Token no proporcionado');
-        return res.redirect('/login'); 
-    }
-
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        req.user = decoded;
-        next(); 
-    } catch (error) {
-        console.error('Error de autenticación:', error.message);
-        return res.redirect('/login');
-    }
-}
-
-function formatDateTime(date) {
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0'); 
-    const year = date.getFullYear();
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
-}
-
-
 // Puerto del servidor
 const port = process.env.PORT ?? 3000;
 
@@ -72,20 +47,16 @@ mongoose.connect(MONGO_URI)
     .then(() => console.log('Conectado a MongoDB Atlas'))
     .catch(err => console.error('Error al conectar a MongoDB:', err));
 
-
-
-
-
-
 // Ruta principal (chat)
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/Pages/login', 'login.html'));
 });
 
 //ruta chat
-app.get('/chat', authenticateToken, (req, res) => {
+app.get('/chat', authenticateToken(JWT_SECRET), (req, res) => {
     res.sendFile(path.join(__dirname, '../client/Pages/chat', 'chat.html'));
 });
+
 
 app.post('/register', async (req, res) => {
     try {
@@ -367,11 +338,6 @@ io.on('connection', async (socket) => {
         socket.disconnect(true);
     }
 });
-
-
-
-
-
 
 // Iniciar el servidor
 server.listen(port, () => {
