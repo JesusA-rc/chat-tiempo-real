@@ -44,15 +44,26 @@ export const registerChatHandlers = (io, JWT_SECRET, users) => {
             );
             socket.emit('users connected', connectedUsers);
 
-            const messages = await Message.find().sort({ createdAt: 1 }).lean();
-            messages.filter(msg => !socket.blockedByMe.has(msg.user) && !socket.whoBlockedMe.has(msg.user))
-                    .forEach(msg => {
-                        socket.emit('chat message', { 
-                            user: msg.user, 
-                            text: msg.text, 
-                            time: formatDateTime(msg.createdAt) 
-                        });
-                    });
+            const fetchMessages = async (query = {}, limit = 20) => {
+                const messages = await Message.find(query).sort({ _id: -1 }).limit(limit).lean();
+                return messages
+                    .filter(msg => !socket.blockedByMe.has(msg.user) && !socket.whoBlockedMe.has(msg.user))
+                    .map(msg => ({
+                        id: msg._id,
+                        user: msg.user,
+                        text: msg.text,
+                        time: formatDateTime(msg.createdAt)
+                    }))
+                    .reverse();
+            };
+
+            const initialMessages = await fetchMessages();
+            socket.emit('chat history', initialMessages);
+
+            socket.on('load previous messages', async (lastId) => {
+                const previousMessages = await fetchMessages({ _id: { $lt: lastId } });
+                socket.emit('previous messages', previousMessages);
+            });
 
             io.sockets.sockets.forEach((client) => {
                 if (client.id === socket.id) return;
@@ -69,12 +80,13 @@ export const registerChatHandlers = (io, JWT_SECRET, users) => {
                     text: msg,
                     createdAt: new Date(), 
                 });
-                await newMessage.save();
+                const savedMessage = await newMessage.save();
 
                 io.sockets.sockets.forEach((client) => {
                     const isBlocked = client.blockedByMe?.has(socket.user) || client.whoBlockedMe?.has(socket.user);
                     if (!isBlocked) {
                         client.emit('chat message', { 
+                            id: savedMessage._id,
                             user: socket.user, 
                             text: msg, 
                             time: formattedDate 

@@ -5,6 +5,7 @@ const usernameElement = document.getElementById('username');
 const form = document.getElementById('form');
 const input = document.getElementById('input');
 const messages = document.getElementById('messages');
+const loadingSpinner = document.getElementById('loading-spinner');
 const usersList = document.getElementById('users-list');
 const typingStatus = document.getElementById('typing-status');
 
@@ -111,27 +112,77 @@ const socket = io({
 });
 
 
-socket.on('chat message', (data) => {
+let oldestMessageId = null;
+let hasMoreMessages = true;
+let isLoadingMore = false;
+
+function addMessage(data, isPrepend = false) {
     const item = document.createElement('li');
+    item.setAttribute('data-id', data.id);
 
     if (data.user === usernameElement.textContent) {
         item.classList.add('user-message');
-
         item.innerHTML = `
-        <span class="timestamp">[${data.time}]</span>
-        <span class="text">${data.text}</span>
-        <span class="user-name"> :${data.user}</span> 
-    `;
-    }else{
+            <span class="timestamp">[${data.time}]</span>
+            <span class="text">${data.text}</span>
+            <span class="user-name"> :${data.user}</span> 
+        `;
+    } else {
         item.innerHTML = `
-        <span class="username">${data.user}:</span> 
-        <span class="text">${data.text}</span>
-        <span class="timestamp">[${data.time}]</span>
-    `;
+            <span class="username">${data.user}:</span> 
+            <span class="text">${data.text}</span>
+            <span class="timestamp">[${data.time}]</span>
+        `;
     }
 
-    messages.appendChild(item);
-    messages.scrollTop = messages.scrollHeight;
+    if (isPrepend) {
+        messages.prepend(item);
+    } else {
+        messages.appendChild(item);
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    if (!oldestMessageId || (isPrepend && data.id < oldestMessageId)) {
+        oldestMessageId = data.id;
+    }
+}
+
+socket.on('chat history', (history) => {
+    history.forEach(msg => addMessage(msg));
+    if (history.length < 20) hasMoreMessages = false;
+});
+
+socket.on('previous messages', (prevMessages) => 
+{
+    loadingSpinner.style.display = 'none';
+    if (prevMessages.length === 0) {
+        hasMoreMessages = false;
+        isLoadingMore = false;
+        return;
+    }
+
+    const previousScrollHeight = messages.scrollHeight;
+    
+    prevMessages.reverse().forEach(msg => addMessage(msg, true));
+    
+    messages.scrollTop = messages.scrollHeight - previousScrollHeight;
+    
+    if (prevMessages.length < 20) hasMoreMessages = false;
+    isLoadingMore = false;
+});
+
+socket.on('chat message', (data) => {
+    addMessage(data);
+});
+
+messages.addEventListener('scroll', () =>
+{
+    if (messages.scrollTop === 0 && hasMoreMessages && !isLoadingMore && oldestMessageId)
+    {
+        isLoadingMore = true;
+        loadingSpinner.style.display = 'flex';
+        socket.emit('load previous messages', oldestMessageId);
+    }
 });
 
 socket.on('user connected', (username) => { //Se conecto un usuario
