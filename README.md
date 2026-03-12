@@ -30,7 +30,10 @@ Una aplicación de chat desarrollada con **Node.js**, **Express**, **Socket.io**
 ### Interfaz de Chat
 Permite ver los usuarios conectados, chatear de forma general y gestionar bloqueos.
 
-![image](https://github.com/user-attachments/assets/018130aa-d966-4e5e-a1e4-d1c6710953ef)
+<img width="1838" height="852" alt="image" src="https://github.com/user-attachments/assets/b8eea02f-acb1-4167-aacf-e8581a9d0c65" />
+<img width="1837" height="850" alt="image" src="https://github.com/user-attachments/assets/75158eba-06b4-4213-bac0-aa788a0a1aff" />
+
+
 ![image](https://github.com/user-attachments/assets/9f167b40-e724-42b9-9972-d5dbf72c3c48)
 
 ### Indicador de Escritura
@@ -38,14 +41,16 @@ Visualización en tiempo real de la actividad de los usuarios.
 
 <img width="1091" height="623" alt="image" src="https://github.com/user-attachments/assets/b3008e26-6c7f-49ca-9fa4-0bdad13c3103" >
 
-###  Diseño Responsivo
-![image](https://github.com/user-attachments/assets/2b665331-3b80-4d04-9565-90a2d88df5ef)
-![image](https://github.com/user-attachments/assets/2494ccc3-ef01-4c9b-a6a2-41c803818b23)
-
 ### Dialogos
 Permite ver los usuarios conectados, chatear de forma general y gestionar bloqueos.
 <img width="1883" height="897" alt="image" src="https://github.com/user-attachments/assets/8656b12c-3eb5-499e-9bad-fcb9e5b33f8d" />
 <img width="1873" height="887" alt="image" src="https://github.com/user-attachments/assets/b73f8cc1-405a-4c10-9440-c29103849bfc" />
+
+###  Diseño Responsivo
+![image](https://github.com/user-attachments/assets/2b665331-3b80-4d04-9565-90a2d88df5ef)
+![image](https://github.com/user-attachments/assets/2494ccc3-ef01-4c9b-a6a2-41c803818b23)
+
+
 
 
 ---
