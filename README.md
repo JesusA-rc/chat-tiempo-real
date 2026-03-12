@@ -34,8 +34,11 @@ Permite ver los usuarios conectados, chatear de forma general y gestionar bloque
 <img width="1838" height="852" alt="image" src="https://github.com/user-attachments/assets/b8eea02f-acb1-4167-aacf-e8581a9d0c65" />
 <img width="1837" height="850" alt="image" src="https://github.com/user-attachments/assets/75158eba-06b4-4213-bac0-aa788a0a1aff" />
 
-
 ![image](https://github.com/user-attachments/assets/9f167b40-e724-42b9-9972-d5dbf72c3c48)
+
+### Interfaz de chat grupal y 1 a 1.
+<img width="1846" height="866" alt="image" src="https://github.com/user-attachments/assets/a8b0cd66-7ce9-4223-82dd-d579843438bc" />
+<img width="1912" height="875" alt="image" src="https://github.com/user-attachments/assets/72f59ff2-b5d1-4d43-96ae-f61b11d41028" />
 
 ### Indicador de Escritura
 Visualización en tiempo real de la actividad de los usuarios.
