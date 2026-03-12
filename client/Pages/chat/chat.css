@@ -489,3 +489,106 @@ emoji-picker {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+.icon-button {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    position: relative;
+    padding: 5px;
+    transition: transform 0.2s;
+}
+
+.icon-button:hover {
+    transform: scale(1.1);
+}
+
+.badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #ff4444;
+    color: white;
+    border-radius: 50%;
+    padding: 2px 6px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    min-width: 15px;
+    text-align: center;
+    border: 2px solid #fff;
+}
+
+.invite-button {
+    background: #4a90e2;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    margin-left: 5px;
+    transition: background 0.2s;
+}
+
+.invite-button:hover {
+    background: #357abd;
+}
+
+#invitations-list {
+    list-style: none;
+    padding: 0;
+}
+
+.invitation-item {
+    background: #f8f9fa;
+    margin-bottom: 10px;
+    padding: 12px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #dee2e6;
+    transition: background 0.2s;
+}
+
+.invitation-item:hover {
+    background: #e9ecef;
+}
+
+.invitation-info {
+    flex-grow: 1;
+    margin-right: 10px;
+}
+
+.invitation-info strong {
+    color: #4a90e2;
+}
+
+.invitation-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-accept {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.btn-reject {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.btn-accept:hover { background: #218838; }
+.btn-reject:hover { background: #c82333; }

@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import Message from '../models/Message.js';
 import Block from '../models/Block.js';
 import Group from '../models/Group.js';
+import Invitation from '../models/Invitation.js';
 import { formatDateTime } from '../utils/dateFormatter.js';
 
 export const registerChatHandlers = (io, JWT_SECRET, users) => {
@@ -95,6 +96,27 @@ export const registerChatHandlers = (io, JWT_SECRET, users) => {
                 }
             });
 
+            // Invitaciones ---------------------------
+            const emitPendingInvitations = async () => {
+                try {
+                    const pendingInvitations = await Invitation.find({ 
+                        recipient: socket.user, 
+                        status: 'pending' 
+                    }).populate('groupId', 'name').lean();
+
+                    socket.emit('pending invitations', pendingInvitations.map(inv => ({
+                        id: inv._id,
+                        sender: inv.sender,
+                        groupName: inv.groupId?.name || 'Grupo Desconocido',
+                        groupId: inv.groupId?._id
+                    })));
+                } catch (error) {
+                    console.error('Error fetching invitations:', error.message);
+                }
+            };
+
+            await emitPendingInvitations();
+
             // Grupos -----------------------------------
             const emitMyGroups = async () => {
                 try {
@@ -133,6 +155,85 @@ export const registerChatHandlers = (io, JWT_SECRET, users) => {
                     await emitMyGroups();
                 } catch (error) {
                     console.error('Error creating group:', error.message);
+                }
+            });
+
+            socket.on('invite to group', async (data) => {
+                try {
+                    const { recipient, groupId } = data;
+                    if (!recipient || !groupId) return;
+
+                    const cleanGroupId = groupId.replace('group:', '');
+                    const group = await Group.findById(cleanGroupId);
+                    
+                    if (!group || !group.members.includes(socket.user)) {
+                        return socket.emit('error', { message: 'No tienes permiso para invitar a este grupo.' });
+                    }
+
+                    if (group.members.includes(recipient)) {
+                        return socket.emit('error', { message: 'El usuario ya es miembro de este grupo.' });
+                    }
+
+                    const invitation = await Invitation.findOneAndUpdate(
+                        { sender: socket.user, recipient, groupId: cleanGroupId, status: 'pending' },
+                        { createdAt: new Date() },
+                        { upsert: true, new: true }
+                    );
+
+                    const targetSocket = getSocketByUsername(recipient);
+                    if (targetSocket) {
+                        targetSocket.emit('new invitation', {
+                            id: invitation._id,
+                            sender: socket.user,
+                            groupName: group.name,
+                            groupId: group._id
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error sending invitation:', error.message);
+                }
+            });
+
+            socket.on('accept invitation', async (invitationId) => {
+                try {
+                    const invitation = await Invitation.findById(invitationId);
+                    if (!invitation || invitation.recipient !== socket.user) return;
+
+                    invitation.status = 'accepted';
+                    await invitation.save();
+
+                    const group = await Group.findById(invitation.groupId);
+                    if (group && !group.members.includes(socket.user)) {
+                        group.members.push(socket.user);
+                        await group.save();
+                    }
+
+                    await emitMyGroups();
+                    await emitPendingInvitations();
+
+                    // Notificar al remitente si está conectado
+                    const senderSocket = getSocketByUsername(invitation.sender);
+                    if (senderSocket) {
+                        senderSocket.emit('invitation accepted', {
+                            user: socket.user,
+                            groupName: group?.name
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error accepting invitation:', error.message);
+                }
+            });
+
+            socket.on('reject invitation', async (invitationId) => {
+                try {
+                    const invitation = await Invitation.findById(invitationId);
+                    if (!invitation || invitation.recipient !== socket.user) return;
+
+                    invitation.status = 'rejected';
+                    await invitation.save();
+                    await emitPendingInvitations();
+                } catch (error) {
+                    console.error('Error rejecting invitation:', error.message);
                 }
             });
 
@@ -230,7 +331,7 @@ export const registerChatHandlers = (io, JWT_SECRET, users) => {
                 }
             });
 
-            socket.on('typing', (data) => {
+            socket.on('typing', async (data) => {
                 const { recipient } = data;
                 if (!recipient) {
                     io.sockets.sockets.forEach(client => {
@@ -238,6 +339,23 @@ export const registerChatHandlers = (io, JWT_SECRET, users) => {
                             client.emit('user typing', { user: socket.user, isGlobal: true });
                         }
                     });
+                } else if (recipient.toString().startsWith('group:')) {
+                    const groupId = recipient.replace('group:', '');
+                    try {
+                        const group = await Group.findById(groupId);
+                        if (group && group.members.includes(socket.user)) {
+                            io.sockets.sockets.forEach((client) => {
+                                if (client.user !== socket.user && group.members.includes(client.user)) {
+                                    const isBlocked = client.blockedByMe?.has(socket.user) || client.whoBlockedMe?.has(socket.user);
+                                    if (!isBlocked) {
+                                        client.emit('user typing', { user: socket.user, isGlobal: false, isGroup: true, groupId: recipient });
+                                    }
+                                }
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Error in typing group:', error.message);
+                    }
                 } else {
                     const targetSocket = getSocketByUsername(recipient);
                     if (targetSocket) {
@@ -249,12 +367,26 @@ export const registerChatHandlers = (io, JWT_SECRET, users) => {
                 }
             });
 
-            socket.on('stop typing', (data) => {
+            socket.on('stop typing', async (data) => {
                 const { recipient } = data;
                 if (!recipient) {
                     io.sockets.sockets.forEach(client => {
                         if (client.id !== socket.id) client.emit('user stop typing', { user: socket.user, isGlobal: true });
                     });
+                } else if (recipient.toString().startsWith('group:')) {
+                    const groupId = recipient.replace('group:', '');
+                    try {
+                        const group = await Group.findById(groupId);
+                        if (group && group.members.includes(socket.user)) {
+                            io.sockets.sockets.forEach((client) => {
+                                if (client.user !== socket.user && group.members.includes(client.user)) {
+                                    client.emit('user stop typing', { user: socket.user, isGlobal: false, isGroup: true, groupId: recipient });
+                                }
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Error in stop typing group:', error.message);
+                    }
                 } else {
                     const targetSocket = getSocketByUsername(recipient);
                     if (targetSocket) targetSocket.emit('user stop typing', { user: socket.user, isGlobal: false });
@@ -267,12 +399,16 @@ export const registerChatHandlers = (io, JWT_SECRET, users) => {
 
             socket.on('logout', () => {
                 users.delete(socket.user);
+                io.emit('user stop typing', { user: socket.user });
+                
                 socket.broadcast.emit('user disconnected', socket.user);
                 socket.disconnect();
             });
 
             socket.on('disconnect', () => {
                 users.delete(socket.user);
+                io.emit('user stop typing', { user: socket.user });
+
                 socket.broadcast.emit('user disconnected', socket.user);
             });
 

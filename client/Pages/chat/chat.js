@@ -17,6 +17,12 @@ const chatWithElement = document.getElementById('chat-with');
 const createGroupButton = document.getElementById('create-group-button');
 const groupsList = document.getElementById('groups-list');
 
+const invitationsButton = document.getElementById('invitations-button');
+const invitationBadge = document.getElementById('invitation-badge');
+const invitationsModal = document.getElementById('invitations-modal');
+const closeInvitationsButton = document.querySelector('.close-invitations');
+const invitationsList = document.getElementById('invitations-list');
+
 const socket = io({
     auth: {
         token: token
@@ -96,12 +102,17 @@ function addUserToList(user) {
     blockButton.textContent = 'Bloquear';
     blockButton.classList.add('block-button');
 
+    const inviteButton = document.createElement('button');
+    inviteButton.textContent = 'Invitar';
+    inviteButton.classList.add('invite-button');
+
     const unreadBadge = document.createElement('span');
     unreadBadge.classList.add('unread-badge');
     unreadBadge.textContent = '0';
 
     userItem.appendChild(userName);
     userItem.appendChild(unreadBadge);
+    userItem.appendChild(inviteButton);
     userItem.appendChild(blockButton);
 
     usersList.appendChild(userItem);
@@ -115,6 +126,16 @@ function addUserToList(user) {
     blockButton.addEventListener('click', (e) => {
         e.stopPropagation();
         blockUser(user);
+    });
+
+    inviteButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (currentRecipient && currentRecipient.toString().startsWith('group:')) {
+            socket.emit('invite to group', { recipient: user, groupId: currentRecipient });
+            alert(`Invitación enviada a ${user}`);
+        } else {
+            alert('Selecciona un grupo primero para invitar a alguien.');
+        }
     });
 }
 
@@ -291,29 +312,111 @@ socket.on('users connected', (connectedUsers) => {
 socket.on('user typing', (data) => {
     const user = typeof data === 'string' ? data : data.user;
     const isGlobal = typeof data === 'string' ? true : data.isGlobal;
+    const isGroup = data && typeof data === 'object' ? data.isGroup : false;
+    const groupId = data && typeof data === 'object' ? data.groupId : null;
 
     const isGlobalMatch = currentRecipient === null && isGlobal;
-    const isPrivateMatch = currentRecipient !== null && !isGlobal && user === currentRecipient;
+    const isPrivateMatch = currentRecipient !== null && !isGlobal && !isGroup && user === currentRecipient;
+    const isGroupMatch = currentRecipient !== null && isGroup && groupId === currentRecipient;
 
-    if (isGlobalMatch || isPrivateMatch) {
+    if (isGlobalMatch || isPrivateMatch || isGroupMatch) {
         typingStatus.textContent = `${user} está escribiendo...`;
     }
 });
 
 socket.on('user stop typing', (data) => {
     const user = data && typeof data === 'object' ? data.user : null;
+    
+    // Si el usuario que dejó de escribir es el que estamos mostrando, lo quitamos.
+    // Esto es robusto contra desconexiones y cambios de contexto incompletos.
+    if (user && typingStatus.textContent.startsWith(user)) {
+        typingStatus.textContent = '';
+        return;
+    }
+
     const isGlobal = data && typeof data === 'object' ? data.isGlobal : true;
+    const isGroup = data && typeof data === 'object' ? data.isGroup : false;
+    const groupId = data && typeof data === 'object' ? data.groupId : null;
 
     const isGlobalMatch = currentRecipient === null && isGlobal;
-    const isPrivateMatch = currentRecipient !== null && !isGlobal && user === currentRecipient;
+    const isPrivateMatch = currentRecipient !== null && !isGlobal && !isGroup && user === currentRecipient;
+    const isGroupMatch = currentRecipient !== null && isGroup && groupId === currentRecipient;
 
-    if (isGlobalMatch || isPrivateMatch || !data) {
+    if (isGlobalMatch || isPrivateMatch || isGroupMatch || !data) {
         typingStatus.textContent = '';
     }
 });
 
 socket.on('redirect', (destination) => {
     window.location.href = destination;
+});
+
+socket.on('error', (data) => {
+    alert(data.message);
+});
+
+socket.on('pending invitations', (invitations) => {
+    updateInvitationsUI(invitations);
+});
+
+socket.on('new invitation', (invitation) => {
+    alert(`¡Nueva invitación de ${invitation.sender} al grupo ${invitation.groupName}!`);
+});
+
+socket.on('invitation accepted', (data) => {
+    alert(`${data.user} ha aceptado tu invitación al grupo ${data.groupName}`);
+});
+
+function updateInvitationsUI(invitations) {
+    invitationsList.innerHTML = '';
+    const count = invitations.length;
+    
+    if (count > 0) {
+        invitationBadge.textContent = count;
+        invitationBadge.style.display = 'inline-block';
+    } else {
+        invitationBadge.style.display = 'none';
+    }
+
+    if (count === 0) {
+        invitationsList.innerHTML = '<li>No tienes invitaciones pendientes.</li>';
+        return;
+    }
+
+    invitations.forEach(inv => {
+        const item = document.createElement('li');
+        item.classList.add('invitation-item');
+        item.innerHTML = `
+            <div class="invitation-info">
+                <strong>${inv.sender}</strong> te invita a <strong>${inv.groupName}</strong>
+            </div>
+            <div class="invitation-actions">
+                <button class="btn-accept" data-id="${inv.id}">Aceptar</button>
+                <button class="btn-reject" data-id="${inv.id}">Rechazar</button>
+            </div>
+        `;
+        invitationsList.appendChild(item);
+    });
+
+    invitationsList.querySelectorAll('.btn-accept').forEach(btn => {
+        btn.addEventListener('click', () => {
+            socket.emit('accept invitation', btn.getAttribute('data-id'));
+        });
+    });
+
+    invitationsList.querySelectorAll('.btn-reject').forEach(btn => {
+        btn.addEventListener('click', () => {
+            socket.emit('reject invitation', btn.getAttribute('data-id'));
+        });
+    });
+}
+
+invitationsButton.addEventListener('click', () => {
+    invitationsModal.style.display = 'flex';
+});
+
+closeInvitationsButton.addEventListener('click', () => {
+    invitationsModal.style.display = 'none';
 });
 
 messages.addEventListener('scroll', () => {
