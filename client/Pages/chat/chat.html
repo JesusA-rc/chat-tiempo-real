@@ -13,6 +13,7 @@
             <span id="username">Usuario</span>
         </div>
         <div class="navbar-actions">
+            <button id="create-group-button">Crear Grupo</button>
             <button id="blocked-users-button">Usuarios Bloqueados</button>
             <button id="logout-button">Cerrar sesión</button>
         </div>
@@ -31,11 +32,21 @@
 
     <div id="main-container">
         <aside id="sidebar">
+            <div id="global-chat-selector" class="user-item active">
+                <span>🌐 Chat Global</span>
+            </div>
+            
+            <h3>Mis Grupos</h3>
+            <ul id="groups-list"></ul>
+
             <h3>Usuarios Conectados</h3>
             <ul id="users-list"></ul>
         </aside>
 
         <section id="chat">
+            <div id="chat-header">
+                <span id="chat-with">Chat Global</span>
+            </div>
             <div id="loading-spinner" style="display: none;">
                 <div class="spinner"></div>
                 <span>Cargando mensajes antiguos...</span>

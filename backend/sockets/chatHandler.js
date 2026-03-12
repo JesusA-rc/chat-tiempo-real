@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Message from '../models/Message.js';
 import Block from '../models/Block.js';
+import Group from '../models/Group.js';
 import { formatDateTime } from '../utils/dateFormatter.js';
 
 export const registerChatHandlers = (io, JWT_SECRET, users) => {
@@ -44,13 +45,28 @@ export const registerChatHandlers = (io, JWT_SECRET, users) => {
             );
             socket.emit('users connected', connectedUsers);
 
-            const fetchMessages = async (query = {}, limit = 20) => {
-                const messages = await Message.find(query).sort({ _id: -1 }).limit(limit).lean();
+            const fetchMessages = async (query = {}, limit = 20, recipient = null) => {
+                const finalQuery = { ...query };
+                if (recipient === null) {
+                    finalQuery.recipient = null;
+                } else if (recipient && recipient.startsWith('group:')) {
+                    finalQuery.recipient = recipient;
+                } else {
+                    finalQuery.$or = [
+                        { user: socket.user, recipient: recipient },
+                        { user: recipient, recipient: socket.user }
+                    ];
+                }
+
+                const messages = await Message.find(finalQuery).sort({ _id: -1 }).limit(limit).lean();
                 return messages
-                    .filter(msg => !socket.blockedByMe.has(msg.user) && !socket.whoBlockedMe.has(msg.user))
+                    .filter(msg => {
+                        return !socket.blockedByMe.has(msg.user) && !socket.whoBlockedMe.has(msg.user);
+                    })
                     .map(msg => ({
                         id: msg._id,
                         user: msg.user,
+                        recipient: msg.recipient,
                         text: msg.text,
                         time: formatDateTime(msg.createdAt)
                     }))
@@ -60,8 +76,14 @@ export const registerChatHandlers = (io, JWT_SECRET, users) => {
             const initialMessages = await fetchMessages();
             socket.emit('chat history', initialMessages);
 
-            socket.on('load previous messages', async (lastId) => {
-                const previousMessages = await fetchMessages({ _id: { $lt: lastId } });
+            socket.on('get chat history', async (recipient) => {
+                const history = await fetchMessages({}, 20, recipient);
+                socket.emit('chat history', history);
+            });
+
+            socket.on('load previous messages', async (data) => {
+                const { lastId, recipient } = data;
+                const previousMessages = await fetchMessages({ _id: { $lt: lastId } }, 20, recipient);
                 socket.emit('previous messages', previousMessages);
             });
 
@@ -73,26 +95,104 @@ export const registerChatHandlers = (io, JWT_SECRET, users) => {
                 }
             });
 
-            socket.on('chat message', async (msg) => {
+            // Grupos -----------------------------------
+            const emitMyGroups = async () => {
+                try {
+                    const myGroups = await Group.find({ members: socket.user }).lean();
+                    socket.emit('my groups', myGroups.map(g => ({
+                        id: `group:${g._id}`,
+                        name: g.name,
+                        members: g.members
+                    })));
+                } catch (error) {
+                    console.error('Error fetching groups:', error.message);
+                }
+            };
+
+            await emitMyGroups();
+
+            socket.on('create group', async (data) => {
+                try {
+                    const { name } = data;
+                    if (!name) return;
+                    
+                    const newGroup = new Group({
+                        name: name,
+                        creator: socket.user,
+                        members: [socket.user]
+                    });
+                    const savedGroup = await newGroup.save();
+                    
+                    const groupData = {
+                        id: `group:${savedGroup._id}`,
+                        name: savedGroup.name,
+                        members: savedGroup.members
+                    };
+                    
+                    socket.emit('group created', groupData);
+                    await emitMyGroups();
+                } catch (error) {
+                    console.error('Error creating group:', error.message);
+                }
+            });
+
+            socket.on('chat message', async (data) => {
+                const { text, recipient } = data;
                 const formattedDate = formatDateTime(new Date());
                 const newMessage = new Message({
                     user: socket.user,
-                    text: msg,
+                    recipient: recipient || null,
+                    text: text,
                     createdAt: new Date(), 
                 });
                 const savedMessage = await newMessage.save();
 
-                io.sockets.sockets.forEach((client) => {
-                    const isBlocked = client.blockedByMe?.has(socket.user) || client.whoBlockedMe?.has(socket.user);
-                    if (!isBlocked) {
-                        client.emit('chat message', { 
-                            id: savedMessage._id,
-                            user: socket.user, 
-                            text: msg, 
-                            time: formattedDate 
-                        });
+                const messageData = { 
+                    id: savedMessage._id,
+                    user: socket.user,
+                    recipient: recipient || null,
+                    text: text, 
+                    time: formattedDate 
+                };
+
+                if (!recipient) {
+                    // Mensaje Global
+                    io.sockets.sockets.forEach((client) => {
+                        const isBlocked = client.blockedByMe?.has(socket.user) || client.whoBlockedMe?.has(socket.user);
+                        if (!isBlocked) {
+                            client.emit('chat message', messageData);
+                        }
+                    });
+                } else if (recipient.startsWith('group:')) {
+                    // Mensaje de Grupo
+                    const groupId = recipient.replace('group:', '');
+                    try {
+                        const group = await Group.findById(groupId);
+                        if (group && group.members.includes(socket.user)) {
+                            io.sockets.sockets.forEach((client) => {
+                                if (group.members.includes(client.user)) {
+                                    const isBlocked = client.blockedByMe?.has(socket.user) || client.whoBlockedMe?.has(socket.user);
+                                    if (!isBlocked) {
+                                        client.emit('chat message', messageData);
+                                    }
+                                }
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Error sending group message:', error.message);
                     }
-                });
+                } else {
+                    // Mensaje Privado
+                    const targetSocket = getSocketByUsername(recipient);
+                    if (targetSocket) {
+                        const isBlocked = targetSocket.blockedByMe?.has(socket.user) || targetSocket.whoBlockedMe?.has(socket.user);
+                        if (!isBlocked) {
+                            targetSocket.emit('chat message', messageData);
+                        }
+                    }
+                    // Siempre enviar al emisor
+                    socket.emit('chat message', messageData);
+                }
             });
 
             socket.on('block user', async (blockedUser) => {
@@ -130,18 +230,35 @@ export const registerChatHandlers = (io, JWT_SECRET, users) => {
                 }
             });
 
-            socket.on('typing', () => {
-                io.sockets.sockets.forEach(client => {
-                    if (client.id !== socket.id && !client.blockedByMe?.has(socket.user) && !client.whoBlockedMe?.has(socket.user)) {
-                        client.emit('user typing', socket.user);
+            socket.on('typing', (data) => {
+                const { recipient } = data;
+                if (!recipient) {
+                    io.sockets.sockets.forEach(client => {
+                        if (client.id !== socket.id && !client.blockedByMe?.has(socket.user) && !client.whoBlockedMe?.has(socket.user)) {
+                            client.emit('user typing', { user: socket.user, isGlobal: true });
+                        }
+                    });
+                } else {
+                    const targetSocket = getSocketByUsername(recipient);
+                    if (targetSocket) {
+                        const isBlocked = targetSocket.blockedByMe?.has(socket.user) || targetSocket.whoBlockedMe?.has(socket.user);
+                        if (!isBlocked) {
+                            targetSocket.emit('user typing', { user: socket.user, isGlobal: false });
+                        }
                     }
-                });
+                }
             });
 
-            socket.on('stop typing', () => {
-                io.sockets.sockets.forEach(client => {
-                    if (client.id !== socket.id) client.emit('user stop typing');
-                });
+            socket.on('stop typing', (data) => {
+                const { recipient } = data;
+                if (!recipient) {
+                    io.sockets.sockets.forEach(client => {
+                        if (client.id !== socket.id) client.emit('user stop typing', { user: socket.user, isGlobal: true });
+                    });
+                } else {
+                    const targetSocket = getSocketByUsername(recipient);
+                    if (targetSocket) targetSocket.emit('user stop typing', { user: socket.user, isGlobal: false });
+                }
             });
 
             socket.on('get blocked users', () => {

@@ -10,6 +10,7 @@ Una aplicación de chat desarrollada con **Node.js**, **Express**, **Socket.io**
 - **Control de Privacidad (Bloqueos):** Sistema de bloqueo de usuarios para filtrar mensajes y estado de conexión.
 - **Indicador de Escritura:** Visualización en tiempo real cuando otros usuarios están escribiendo mensajes.
 - **Diseño Responsivo:** Interfaz adaptable a diferentes dispositivos (móvil, tablet y escritorio).
+- **Grupos:** Creación y participación en grupos para conversaciones grupales.
 
 ---
 

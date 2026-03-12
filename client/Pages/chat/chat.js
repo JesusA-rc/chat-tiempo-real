@@ -1,29 +1,35 @@
 const token = localStorage.getItem('token');
+
+if (!token) {
+    window.location.href = '/login';
+}
+
 const logoutButton = document.getElementById('logout-button');
 const usernameElement = document.getElementById('username');
-
 const form = document.getElementById('form');
 const input = document.getElementById('input');
 const messages = document.getElementById('messages');
 const loadingSpinner = document.getElementById('loading-spinner');
 const usersList = document.getElementById('users-list');
 const typingStatus = document.getElementById('typing-status');
+const globalChatSelector = document.getElementById('global-chat-selector');
+const chatWithElement = document.getElementById('chat-with');
+const createGroupButton = document.getElementById('create-group-button');
+const groupsList = document.getElementById('groups-list');
 
-let typingTimeout;
-
-input.addEventListener('keydown', () => {
-    socket.emit('typing', { user: usernameElement.textContent });
-
-    clearTimeout(typingTimeout);
-    typingTimeout = setTimeout(() => {
-        socket.emit('stop typing');
-    }, 2000);
+const socket = io({
+    auth: {
+        token: token
+    }
 });
 
+let typingTimeout;
 let blockedUsers = [];
+let oldestMessageId = null;
+let hasMoreMessages = true;
+let isLoadingMore = false;
+let currentRecipient = null; // null Chat Global
 
-
-//Funciones  -----------------------------------
 function showConfirm(title, message, onConfirm) {
     const modal = document.getElementById('confirm-modal');
     const titleEl = document.getElementById('confirm-title');
@@ -50,10 +56,10 @@ function blockUser(username) {
         'Bloquear Usuario', 
         `¿Estás seguro de que quieres bloquear a ${username}? No verás sus mensajes ni él los tuyos.`, 
         () => {
-            socket.emit('block user', username); //Registra el bloqueo en el servidor
+            socket.emit('block user', username);
             blockedUsers.push(username);
 
-            const userItems = usersList.querySelectorAll('li'); //Lo elimina visualmente
+            const userItems = usersList.querySelectorAll('li');
             userItems.forEach((item) => {
                 if (item.textContent.includes(username)) {
                     item.remove();
@@ -90,31 +96,27 @@ function addUserToList(user) {
     blockButton.textContent = 'Bloquear';
     blockButton.classList.add('block-button');
 
+    const unreadBadge = document.createElement('span');
+    unreadBadge.classList.add('unread-badge');
+    unreadBadge.textContent = '0';
+
     userItem.appendChild(userName);
+    userItem.appendChild(unreadBadge);
     userItem.appendChild(blockButton);
 
     usersList.appendChild(userItem);
 
-    blockButton.addEventListener('click', () => {
+    userItem.addEventListener('click', (e) => {
+        if (e.target !== blockButton) {
+            switchChat(user);
+        }
+    });
+
+    blockButton.addEventListener('click', (e) => {
+        e.stopPropagation();
         blockUser(user);
     });
 }
-
-if (!token) {
-    window.location.href = '/login';
-}
-
-// Conectar con Socket.IO 
-const socket = io({
-    auth: {
-        token: token
-    }
-});
-
-
-let oldestMessageId = null;
-let hasMoreMessages = true;
-let isLoadingMore = false;
 
 function addMessage(data, isPrepend = false) {
     const item = document.createElement('li');
@@ -147,13 +149,74 @@ function addMessage(data, isPrepend = false) {
     }
 }
 
+function addGroupToList(group) {
+    const groupItem = document.createElement('li');
+    groupItem.classList.add('user-item');
+    groupItem.setAttribute('data-group', group.id);
+
+    const groupName = document.createElement('span');
+    groupName.textContent = `👥 ${group.name}`;
+    groupName.classList.add('user-name');
+
+    const unreadBadge = document.createElement('span');
+    unreadBadge.classList.add('unread-badge');
+    unreadBadge.textContent = '0';
+
+    groupItem.appendChild(groupName);
+    groupItem.appendChild(unreadBadge);
+
+    groupsList.appendChild(groupItem);
+
+    groupItem.addEventListener('click', () => {
+        switchChat(group.id);
+    });
+}
+
+function switchChat(recipient) {
+    currentRecipient = recipient;
+    messages.innerHTML = '';
+    oldestMessageId = null;
+    hasMoreMessages = true;
+    isLoadingMore = false;
+
+    document.querySelectorAll('.user-item, #global-chat-selector').forEach(el => el.classList.remove('active'));
+    if (recipient === null) {
+        globalChatSelector.classList.add('active');
+        chatWithElement.textContent = 'Chat Global';
+    } else if (typeof recipient === 'string' && recipient.startsWith('group:')) {
+        const groupEl = document.querySelector(`.user-item[data-group="${recipient}"]`);
+        if (groupEl) {
+            groupEl.classList.add('active');
+            groupEl.classList.remove('has-unread');
+            const badge = groupEl.querySelector('.unread-badge');
+            if (badge) badge.textContent = '0';
+        }
+        const groupName = document.querySelector(`.user-item[data-group="${recipient}"] .user-name`)?.textContent || 'Grupo';
+        chatWithElement.textContent = `Grupo: ${groupName.replace('👥 ', '')}`;
+    } else {
+        const userEl = document.querySelector(`.user-item[data-user="${recipient}"]`);
+        if (userEl) {
+            userEl.classList.add('active');
+            userEl.classList.remove('has-unread');
+            const badge = userEl.querySelector('.unread-badge');
+            if (badge) badge.textContent = '0';
+        }
+        chatWithElement.textContent = `Conversación con: ${recipient}`;
+    }
+
+    socket.emit('get chat history', recipient);
+}
+
+// Eventos de Socket.IO -----------------------------------
+
+globalChatSelector.addEventListener('click', () => switchChat(null));
+
 socket.on('chat history', (history) => {
     history.forEach(msg => addMessage(msg));
     if (history.length < 20) hasMoreMessages = false;
 });
 
-socket.on('previous messages', (prevMessages) => 
-{
+socket.on('previous messages', (prevMessages) => {
     loadingSpinner.style.display = 'none';
     if (prevMessages.length === 0) {
         hasMoreMessages = false;
@@ -162,9 +225,7 @@ socket.on('previous messages', (prevMessages) =>
     }
 
     const previousScrollHeight = messages.scrollHeight;
-    
     prevMessages.reverse().forEach(msg => addMessage(msg, true));
-    
     messages.scrollTop = messages.scrollHeight - previousScrollHeight;
     
     if (prevMessages.length < 20) hasMoreMessages = false;
@@ -172,20 +233,42 @@ socket.on('previous messages', (prevMessages) =>
 });
 
 socket.on('chat message', (data) => {
-    addMessage(data);
-});
+    const isGlobalMatch = currentRecipient === null && data.recipient === null;
+    const isPrivateMatch = currentRecipient !== null && 
+        ((data.user === currentRecipient && data.recipient === usernameElement.textContent) || 
+         (data.user === usernameElement.textContent && data.recipient === currentRecipient));
+    const isGroupMatch = currentRecipient !== null && currentRecipient.toString().startsWith('group:') && data.recipient === currentRecipient;
 
-messages.addEventListener('scroll', () =>
-{
-    if (messages.scrollTop === 0 && hasMoreMessages && !isLoadingMore && oldestMessageId)
-    {
-        isLoadingMore = true;
-        loadingSpinner.style.display = 'flex';
-        socket.emit('load previous messages', oldestMessageId);
+    if (isGlobalMatch || isPrivateMatch || isGroupMatch) {
+        addMessage(data);
+    } else if (data.recipient !== null) {
+        const selector = data.recipient.toString().startsWith('group:') 
+            ? `.user-item[data-group="${data.recipient}"]`
+            : `.user-item[data-user="${data.user}"]`;
+            
+        const itemEl = document.querySelector(selector);
+        if (itemEl) {
+            itemEl.classList.add('has-unread');
+            const badge = itemEl.querySelector('.unread-badge');
+            if (badge) {
+                const count = parseInt(badge.textContent || '0') + 1;
+                badge.textContent = count;
+            }
+        }
     }
 });
 
-socket.on('user connected', (username) => { //Se conecto un usuario
+socket.on('my groups', (groups) => {
+    groupsList.innerHTML = '';
+    groups.forEach(group => addGroupToList(group));
+});
+
+socket.on('group created', (group) => {
+    addGroupToList(group);
+    switchChat(group.id);
+});
+
+socket.on('user connected', (username) => {
     if (!document.querySelector(`li[data-user="${username}"]`)) {
         addUserToList(username);
     }
@@ -205,45 +288,61 @@ socket.on('users connected', (connectedUsers) => {
     });
 });
 
+socket.on('user typing', (data) => {
+    const user = typeof data === 'string' ? data : data.user;
+    const isGlobal = typeof data === 'string' ? true : data.isGlobal;
+
+    const isGlobalMatch = currentRecipient === null && isGlobal;
+    const isPrivateMatch = currentRecipient !== null && !isGlobal && user === currentRecipient;
+
+    if (isGlobalMatch || isPrivateMatch) {
+        typingStatus.textContent = `${user} está escribiendo...`;
+    }
+});
+
+socket.on('user stop typing', (data) => {
+    const user = data && typeof data === 'object' ? data.user : null;
+    const isGlobal = data && typeof data === 'object' ? data.isGlobal : true;
+
+    const isGlobalMatch = currentRecipient === null && isGlobal;
+    const isPrivateMatch = currentRecipient !== null && !isGlobal && user === currentRecipient;
+
+    if (isGlobalMatch || isPrivateMatch || !data) {
+        typingStatus.textContent = '';
+    }
+});
 
 socket.on('redirect', (destination) => {
     window.location.href = destination;
 });
 
-socket.on('user typing', (username) => {
-    typingStatus.textContent = `${username} está escribiendo...`;
-});
-
-socket.on('user stop typing', () => {
-    typingStatus.textContent = '';
+messages.addEventListener('scroll', () => {
+    if (messages.scrollTop === 0 && hasMoreMessages && !isLoadingMore && oldestMessageId) {
+        isLoadingMore = true;
+        loadingSpinner.style.display = 'flex';
+        socket.emit('load previous messages', { lastId: oldestMessageId, recipient: currentRecipient });
+    }
 });
 
 logoutButton.addEventListener('click', () => {
-    showConfirm(
-        'Cerrar Sesión',
-        '¿Estás seguro de que quieres salir?',
-        () => {
-            socket.emit('logout');
-            localStorage.removeItem('token');
-            socket.disconnect();
-            window.location.href = '/login';
-        }
-    );
+    showConfirm('Cerrar Sesión', '¿Estás seguro de que quieres salir?', () => {
+        socket.emit('logout');
+        localStorage.removeItem('token');
+        socket.disconnect();
+        window.location.href = '/login';
+    });
 });
 
-let username = 'Usuario';
 try {
     const payload = token.split('.')[1]; 
     const decodedPayload = JSON.parse(atob(payload));
-    username = decodedPayload.username || 'Usuario';
+    usernameElement.textContent = decodedPayload.username || 'Usuario';
 } catch (error) {
     console.error('Error al decodificar el token:', error);
 }
-usernameElement.textContent = username;
 
 window.addEventListener('storage', (event) => {
     if (event.key === 'token' && !event.newValue) {
-        console.log('Sesión cerrada en otra pestaña');
         socket.disconnect();
         window.location.href = '/login';
     }
@@ -252,12 +351,22 @@ window.addEventListener('storage', (event) => {
 form.addEventListener('submit', (e) => {
     e.preventDefault();
     if (input.value) {
-        socket.emit('chat message', input.value);
+        socket.emit('chat message', {
+            text: input.value,
+            recipient: currentRecipient
+        });
         input.value = '';
     }
 });
 
-//Modal
+input.addEventListener('keydown', () => {
+    socket.emit('typing', { recipient: currentRecipient });
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+        socket.emit('stop typing', { recipient: currentRecipient });
+    }, 2000);
+});
+
 const blockedUsersButton = document.getElementById('blocked-users-button');
 const blockedUsersModal = document.getElementById('blocked-users-modal');
 const closeModalButton = document.querySelector('.close');
@@ -270,29 +379,22 @@ blockedUsersButton.addEventListener('click', () => {
     socket.once('blocked users list', (blockedUsers) => {
         blockedUsers.forEach((user) => {
             const userItem = document.createElement('li');
-
             const userName = document.createElement('span');
             userName.textContent = user;
-
             const unblockButton = document.createElement('button');
             unblockButton.textContent = 'Desbloquear';
 
             userItem.appendChild(userName);
             userItem.appendChild(unblockButton);
-
             blockedUsersList.appendChild(userItem);
+
             unblockButton.addEventListener('click', () => {
                 socket.emit('unblock user', user);
                 userItem.remove(); 
             });
         });
     });
-
     blockedUsersModal.style.display = 'flex';
-});
-
-socket.on('blocked users list', (blockedUsersList) => {
-    blockedUsers = blockedUsersList;
 });
 
 closeModalButton.addEventListener('click', () => {
@@ -320,8 +422,7 @@ emojiButton.addEventListener('click', (e) => {
 });
 
 emojiPicker.addEventListener('emoji-click', (event) => {
-    const emoji = event.detail.unicode;
-    input.value += emoji;
+    input.value += event.detail.unicode;
     input.focus();
 });
 
@@ -331,7 +432,9 @@ document.addEventListener('click', (e) => {
     }
 });
 
-form.addEventListener('submit', () => {
-    emojiPickerContainer.style.display = 'none';
+createGroupButton.addEventListener('click', () => {
+    const groupName = prompt('Ingrese el nombre del grupo:');
+    if (groupName) {
+        socket.emit('create group', { name: groupName });
+    }
 });
-
