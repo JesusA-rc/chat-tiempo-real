@@ -17,6 +17,11 @@ const chatWithElement = document.getElementById('chat-with');
 const createGroupButton = document.getElementById('create-group-button');
 const groupsList = document.getElementById('groups-list');
 
+const viewGroupMembersButton = document.getElementById('view-group-members-button');
+const groupMembersModal = document.getElementById('group-members-modal');
+const closeGroupMembersButton = document.querySelector('.close-group-members');
+const groupMembersList = document.getElementById('group-members-list');
+
 const invitationsButton = document.getElementById('invitations-button');
 const invitationBadge = document.getElementById('invitation-badge');
 const invitationsModal = document.getElementById('invitations-modal');
@@ -204,6 +209,7 @@ function switchChat(recipient) {
     if (recipient === null) {
         globalChatSelector.classList.add('active');
         chatWithElement.textContent = 'Chat Global';
+        viewGroupMembersButton.style.display = 'none';
     } else if (typeof recipient === 'string' && recipient.startsWith('group:')) {
         const groupEl = document.querySelector(`.user-item[data-group="${recipient}"]`);
         if (groupEl) {
@@ -214,6 +220,7 @@ function switchChat(recipient) {
         }
         const groupName = document.querySelector(`.user-item[data-group="${recipient}"] .user-name`)?.textContent || 'Grupo';
         chatWithElement.textContent = `Grupo: ${groupName.replace('👥 ', '')}`;
+        viewGroupMembersButton.style.display = 'block';
     } else {
         const userEl = document.querySelector(`.user-item[data-user="${recipient}"]`);
         if (userEl) {
@@ -223,6 +230,7 @@ function switchChat(recipient) {
             if (badge) badge.textContent = '0';
         }
         chatWithElement.textContent = `Conversación con: ${recipient}`;
+        viewGroupMembersButton.style.display = 'none';
     }
 
     socket.emit('get chat history', recipient);
@@ -287,6 +295,25 @@ socket.on('my groups', (groups) => {
 socket.on('group created', (group) => {
     addGroupToList(group);
     switchChat(group.id);
+});
+
+socket.on('group members list', (data) => {
+    const { creator, members } = data;
+    groupMembersList.innerHTML = '';
+    
+    const creatorItem = document.createElement('li');
+    creatorItem.innerHTML = `<strong>👑 ${creator}</strong> <em>(Dueño)</em>`;
+    groupMembersList.appendChild(creatorItem);
+
+    members.forEach(member => {
+        if (member !== creator) {
+            const memberItem = document.createElement('li');
+            memberItem.textContent = member;
+            groupMembersList.appendChild(memberItem);
+        }
+    });
+
+    groupMembersModal.style.display = 'flex';
 });
 
 socket.on('user connected', (username) => {
@@ -504,9 +531,22 @@ closeModalButton.addEventListener('click', () => {
     blockedUsersModal.style.display = 'none';
 });
 
+viewGroupMembersButton.addEventListener('click', () => {
+    if (currentRecipient && typeof currentRecipient === 'string' && currentRecipient.startsWith('group:')) {
+        socket.emit('get group members', currentRecipient);
+    }
+});
+
+closeGroupMembersButton.addEventListener('click', () => {
+    groupMembersModal.style.display = 'none';
+});
+
 window.addEventListener('click', (event) => {
     if (event.target === blockedUsersModal) {
         blockedUsersModal.style.display = 'none';
+    }
+    if (event.target === groupMembersModal) {
+        groupMembersModal.style.display = 'none';
     }
 });
 

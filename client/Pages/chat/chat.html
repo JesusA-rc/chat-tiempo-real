@@ -58,6 +58,7 @@
         <section id="chat">
             <div id="chat-header">
                 <span id="chat-with">Chat Global</span>
+                <button id="view-group-members-button" class="btn-primary" style="display: none; margin-left: auto; padding: 5px 10px; font-size: 0.9em; border-radius: 15px; cursor: pointer; border: none; background-color: #4CAF50; color: white;">👥 Ver Miembros</button>
             </div>
             <div id="loading-spinner" style="display: none;">
                 <div class="spinner"></div>
@@ -86,6 +87,15 @@
                 <button id="confirm-cancel">Cancelar</button>
                 <button id="confirm-ok" class="btn-danger">Confirmar</button>
             </div>
+        </div>
+    </div>
+
+    <div id="group-members-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-group-members close">&times;</span>
+            <h2>Miembros del Grupo</h2>
+            <ul id="group-members-list">
+            </ul>
         </div>
     </div>
 

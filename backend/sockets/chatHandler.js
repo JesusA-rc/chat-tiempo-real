@@ -397,6 +397,21 @@ export const registerChatHandlers = (io, JWT_SECRET, users) => {
                 socket.emit('blocked users list', Array.from(socket.blockedByMe || []));
             });
 
+            socket.on('get group members', async (groupId) => {
+                try {
+                    const cleanGroupId = groupId.replace('group:', '');
+                    const group = await Group.findById(cleanGroupId).lean();
+                    if (group && group.members.includes(socket.user)) {
+                        socket.emit('group members list', {
+                            creator: group.creator,
+                            members: group.members
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error fetching group members:', error.message);
+                }
+            });
+
             socket.on('logout', () => {
                 users.delete(socket.user);
                 io.emit('user stop typing', { user: socket.user });

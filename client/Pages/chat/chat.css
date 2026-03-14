@@ -420,6 +420,8 @@ emoji-picker {
     border-bottom: 1px solid #ccc;
     font-weight: bold;
     color: #355c7d;
+    display: flex;
+    align-items: center;
 }
 
 #global-chat-selector {
